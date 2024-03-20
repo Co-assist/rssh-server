@@ -262,12 +262,13 @@ opt=$1
 moduleID=$2
 if [ "$#" -eq 0 ] || [ "${opt}" = "-h" ] || [ "${opt}" = "--help" ]; then
     echo "Usage:"
-    echo "       gateway -l --list : Liste les gateway ayant déjà communiquées (l: list)"
-    echo "       gateway -i --interract moduleID : Connection SSH à la gateway (i: interract)"
-    echo "       gateway -c --connectivity moduleID : Retourne la source internet (c: connectivity)"
-    echo "       gateway -r --reboot moduleID : Reboot de la gateway (c: connectivity)"
-    echo "       gateway -a --addWireguard loraDevEUI publickey : création du lien wireguard"
-    echo "       gateway -g --getWireguardIP moduleID : création du lien wireguard"
+    echo "       gateway -l --listRssh : Liste les gateway (rssh) ayant déjà communiquées"
+    echo "       gateway -lw --listWireguard : Liste les gateway (wireguard) ayant déjà communiquées"
+    echo "       gateway -i --interract moduleID : Connection SSH à la gateway"
+    echo "       gateway -c --connectivity moduleID : Retourne la source internet"
+    echo "       gateway -r --reboot moduleID : Reboot de la gateway"
+    echo "       gateway -a --addWireguardClient loraDevEUI publickey : Création du client wireguard"
+    echo "       gateway -g --getWireguardClientIP moduleID : Retourne l'IP wireguard du client"
     echo "       gateway -h --help : affichage de l'aide"
     exit 0
 fi
@@ -282,9 +283,9 @@ elif [ "${opt}" = "-c" ] || [ "${opt}" = "--connectivity" ] && [ "$#" -eq 2 ]; t
     retrieveConnectivityFromWireguardOrRssh "$moduleID"
 elif [ "${opt}" = "-r" ] || [ "${opt}" = "--reboot" ] && [ "$#" -eq 2 ]; then
     retrieveAndInitiateSSHConnection "$moduleID" "reboot"
-elif [ "${opt}" = "-a" ] || [ "${opt}" = "--addWireguard" ] && [ "$#" -eq 3 ]; then
+elif [ "${opt}" = "-a" ] || [ "${opt}" = "--addWireguardClient" ] && [ "$#" -eq 3 ]; then
     addWireguardDevice "$2" "$3"
-elif [ "${opt}" = "-g" ] || [ "${opt}" = "--getWireguardIP" ] && [ "$#" -eq 2 ]; then
+elif [ "${opt}" = "-g" ] || [ "${opt}" = "--getWireguardClientIP" ] && [ "$#" -eq 2 ]; then
     retrieveWireguardIP "$moduleID"
 else
     echo "Arguments invalides"
