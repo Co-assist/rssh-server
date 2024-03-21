@@ -43,13 +43,6 @@ addWireguardDevice() {
         sudo sqlite3 $_wireguarddb "INSERT OR REPLACE INTO $_wireguardtb (key, value) VALUES ('//wireguard/lastIP/', '$_addWireguardDevice_newIP')"
         # Ajouter la ligne //port/loraDevEUI | PORT (en fonction draginoV1 ou v2) (SQLite)
 
-        _addWireguardDevice_port="22"
-        _addWireguardDevice_twoFirstChars=$(printf '%s' "$_addWireguardDevice_moduleID" | cut -c 1-2)
-        if [ "$_addWireguardDevice_moduleID" = "ff" ]; then
-            _addWireguardDevice_port="2222"
-        fi
-
-        sudo sqlite3 $_wireguarddb "INSERT INTO $_wireguardtb (key, value) VALUES ('//port/$_addWireguardDevice_loraDevEUI/', '$_addWireguardDevice_port')"
         restartWireguardService
         echo "success"
         exit 0
@@ -102,11 +95,11 @@ retrieveConnectivityFromWireguardOrRssh() { # noDeviceFound or noResponseFromThe
     argumentsInvalids "retrieveConnectivityFromWireguardOrRssh" 1 "$#"
     _retrieveConnectivityFromWireguardOrRssh_moduleID=$1
     # recherche de l'IP par module dans la table SQLite
-    _retrieveConnectivityFromWireguardOrRssh_ip=$(sqlite3 $_wireguarddb "select key, value from $_wireguardtb where key like '%ip/%$moduleID%'" | cut -d "/" -f 4 | cut -d "|" -f 1)
+    _retrieveConnectivityFromWireguardOrRssh_ip=$(sqlite3 $_wireguarddb "select value from $_wireguardtb where key like '%ip/%$moduleID%'" | cut -d "/" -f 4 | cut -d "|" -f 1)
     if [ -n "$_retrieveConnectivityFromWireguardOrRssh_ip" ]; then
         # Si IP retournée on continue, connection SSH et réccuépration de la source de la connectivité
-        _retrieveConnectivityFromWireguardOrRssh_port=$(getPort "$_retrieveConnectivityFromWireguardOrRssh_moduleID")
-        _retrieveConnectivityFromWireguardOrRssh_interface=$(sshpass -p dragino /usr/bin/ssh -o StrictHostKeyChecking=no -p "$_retrieveConnectivityFromWireguardOrRssh_port" root@"$_retrieveConnectivityFromWireguardOrRssh_ip" "ip route|grep default|cut -d ' ' -f 5")
+        _retrieveConnectivityFromWireguardOrRssh_port="22"
+        _retrieveConnectivityFromWireguardOrRssh_interface=$(timeout 4 sshpass -p dragino /usr/bin/ssh -o StrictHostKeyChecking=no -p "$_retrieveConnectivityFromWireguardOrRssh_port" root@"$_retrieveConnectivityFromWireguardOrRssh_ip" "ip route|grep default|cut -d ' ' -f 5")
         returnReadableConnectivity "$_retrieveConnectivityFromWireguardOrRssh_interface"
     else # Sinon on retourne "noDeviceFound"
         retrieveConnectivityFromRSSH "$_retrieveConnectivityFromWireguardOrRssh_moduleID"
@@ -127,7 +120,7 @@ retrieveConnectivityFromRSSH() { # noDeviceFound or noResponseFromTheDevice or e
             # On récupère le le numéro de port
             _retrieveConnectivityFromRSSH_port=$(getPort "$_retrieveConnectivityFromRSSH_moduleID")
             if [ -n "$_retrieveConnectivityFromRSSH_port" ]; then
-                _retrieveConnectivityFromRSSH_interface=$(sshpass -p dragino /usr/bin/ssh -p "${_retrieveConnectivityFromRSSH_port}" -o StrictHostKeyChecking=no root@localhost "ip route|grep default|cut -d ' ' -f 5")
+                _retrieveConnectivityFromRSSH_interface=$(timeout 4 sshpass -p dragino /usr/bin/ssh -p "${_retrieveConnectivityFromRSSH_port}" -o StrictHostKeyChecking=no root@localhost "ip route|grep default|cut -d ' ' -f 5")
                 returnReadableConnectivity "$_retrieveConnectivityFromRSSH_interface"
             else
                 noResponseFromTheDevice
@@ -154,10 +147,10 @@ retrieveAndInitiateSSHConnection() {
     # recherche de l'IP par module dans la table SQLite
     _retrieveAndInitiateSSHConnection_moduleID=$1
     _retrieveAndInitiateSSHConnection_command=$2
-    _retrieveAndInitiateSSHConnection_ip=$(sqlite3 $_rsshdb "select key, value from $_rsshtb where key like '%ip/%$_retrieveAndInitiateSSHConnection_moduleID'" | cut -d "/" -f 4 | cut -d "|" -f 1)
+    _retrieveAndInitiateSSHConnection_ip=$(sqlite3 $_rsshdb "select value from $_rsshtb where key like '%ip/%$_retrieveAndInitiateSSHConnection_moduleID'" | cut -d "/" -f 4 | cut -d "|" -f 1)
     if [ -n "$_retrieveAndInitiateSSHConnection_ip" ]; then
         # Si IP retournée on continue, connection SSH et réccuépration de la source de la connectivité
-        _retrieveAndInitiateSSHConnection_port=$(getPort "$_retrieveAndInitiateSSHConnection_moduleID")
+        _retrieveAndInitiateSSHConnection_port="22"
         connectOrSendSSHCommand "$_retrieveAndInitiateSSHConnection_port" "$_retrieveAndInitiateSSHConnection_ip" "$_retrieveAndInitiateSSHConnection_command"
     else # Sinon on cherche par RSSH
         _retrieveAndInitiateSSHConnection_lastCommunicationTimestamp=$(sqlite3 $_rsshdb "select value from $_rsshtb where key like '%status/%$_retrieveAndInitiateSSHConnection_moduleID';")
@@ -168,7 +161,7 @@ retrieveAndInitiateSSHConnection() {
             if [ $_retrieveAndInitiateSSHConnection_diff -gt 1200 ]; then # Si le dispositif n'a pas communiqué depuis plus de 20 minutes (deux cycles de communication: 10min) quelque chose ne va pas
                 noResponseFromTheDeviceSince "$_retrieveAndInitiateSSHConnection_lastCommunicationTimestamp"
             else
-                # On récupère le le numéro de port
+                # On récupère le numéro de port
                 _retrieveAndInitiateSSHConnection_port=$(getPort "$_retrieveAndInitiateSSHConnection_moduleID")
                 connectOrSendSSHCommand "$_retrieveAndInitiateSSHConnection_port" "$_retrieveAndInitiateSSHConnection_ip" "$_retrieveAndInitiateSSHConnection_command"
             fi
@@ -192,7 +185,7 @@ connectOrSendSSHCommand() {
 initiateSSHConnection() {
     _initiateSSHConnection_port=$1
     _initiateSSHConnection_ip=$2
-    sshpass -p dragino /usr/bin/ssh -o StrictHostKeyChecking=no -p "$_initiateSSHConnection_port" root@"$_initiateSSHConnection_ip"
+    timeout 4 sshpass -p dragino /usr/bin/ssh -o StrictHostKeyChecking=no -p "$_initiateSSHConnection_port" root@"$_initiateSSHConnection_ip"
     exit 0
 }
 
@@ -200,7 +193,8 @@ sendSSHCommand() {
     _sendSSHCommand_port=$1
     _sendSSHCommand_ip=$2
     _sendSSHCommand_command=$3
-    sshpass -p dragino /usr/bin/ssh -p "$_sendSSHCommand_port" -tt root@"$_sendSSHCommand_ip" "$_sendSSHCommand_command"
+    timeout 4  sshpass  -p dragino /usr/bin/ssh -p "$_sendSSHCommand_port" -tt root@"$_sendSSHCommand_ip" "$_sendSSHCommand_command"
+    exit 0
 }
 
 getPort() {
