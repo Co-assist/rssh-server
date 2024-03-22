@@ -44,7 +44,7 @@ addWireguardDevice() {
         # Ajouter la ligne //port/loraDevEUI | PORT (en fonction draginoV1 ou v2) (SQLite)
 
         restartWireguardService
-        echo "success"
+        echo "$_addWireguardDevice_newIP"
         exit 0
     fi
 }
