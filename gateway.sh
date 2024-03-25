@@ -175,7 +175,7 @@ connectOrSendSSHCommand() {
     _connectOrSendSSHCommand_port=$1
     _connectOrSendSSHCommand_ip=$2
     _connectOrSendSSHCommand_command=$3
-    if [ -n "$_connectOrSendSSHCommand_command" ]; then
+    if [ -z "$_connectOrSendSSHCommand_command" ]; then
         initiateSSHConnection "$_connectOrSendSSHCommand_port" "$_connectOrSendSSHCommand_ip"
     else
         sendSSHCommand "$_connectOrSendSSHCommand_port" "$_connectOrSendSSHCommand_ip" "$_connectOrSendSSHCommand_command"
